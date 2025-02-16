@@ -14,8 +14,8 @@ import shutil
 import os
 
 EXECUTABLE_PATH: str = "./build/bin/main.exe"
-BUILD_DIR: str = "./build/obj"
+INTERMIDIATES_DIR: str = "./build/obj"
 
-shutil.rmtree(BUILD_DIR)
-os.makedirs(BUILD_DIR)
+shutil.rmtree(INTERMIDIATES_DIR)
+os.makedirs(INTERMIDIATES_DIR)
 os.remove(EXECUTABLE_PATH)
