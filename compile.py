@@ -20,6 +20,7 @@ import glob
 import time
 
 from ansi import *
+from log import *
 
 
 def main() -> None:
@@ -27,15 +28,15 @@ def main() -> None:
     config_path: str = sys.argv[-1]
 
     if len(config_path) == 1:
-        print(f"{FG_RED}error{RESET}: {FG_WHITE_FAINT}compile.py:29{RESET} Provided no argument")
+        log_error("Provided no config path argument")
         return
 
     if not os.path.exists(config_path):
-        print(f"{FG_RED}error{RESET}: {FG_WHITE_FAINT}compile.py:33{RESET} Provided config path does not exist")
+        log_error("Provided config path does not exist")
         return
     
     if not config_path.endswith(".cfg"):
-        print(f"{FG_RED}error{RESET}: {FG_WHITE_FAINT}compile.py:37{RESET} Provided config path is not a config file (must end with .cfg)")
+        log_error("Provided config path is not a config file (must end with .cfg)")
         return
     
     # Load config
