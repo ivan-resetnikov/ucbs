@@ -13,6 +13,7 @@
 import sys
 
 import configparser
+import importlib
 
 import os
 import subprocess
@@ -21,6 +22,14 @@ import time
 
 from ansi import *
 from log import *
+
+
+
+class Extension:
+    def __init__(self):
+        self.config: configparser.ConfigParser = None
+        self.inject_stages: list[str] = ""
+        self.module = None
 
 
 def main() -> None:
@@ -54,14 +63,22 @@ def main() -> None:
 
     EXTRA_LINK_TARGETS: list[str] = config["ucbs"]["extra_link_targets"].replace(" ", "").split(",")
 
+    # Load extensions
     EXTENSIONS: list[str] = config["ucbs"]["extensions"].replace(" ", "").split(",")
 
-    print(EXTENSIONS)
+    loaded_extensions: list[Extension] = []
+    for extension_name in EXTENSIONS:
+        extension: Extension = Extension()
 
-    return #################
+        extension.config = configparser.ConfigParser()
+        extension.config.read(f"./extensions/{extension_name}/extension.cfg")
 
-    SHADER_DIR: str = ""
+        extension.inject_stages = extension.config["extension"]["inject_stages"]
 
+        extension.module = importlib.import_module(f"extensions.{extension_name}.extension")
+
+        loaded_extensions.append(extension)
+        
     # Ensure dir tree
     os.makedirs(INTERMIDIATES_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(EXECUTABLE_PATH), exist_ok=True)
@@ -73,38 +90,10 @@ def main() -> None:
     def needs_rebuild(src: str, obj: str) -> bool:
         return not os.path.exists(obj) or os.path.getmtime(src) > os.path.getmtime(obj)
 
-    # Shaders
-    shader_db: str = ""
-
-    shader_db += "// Auto generated file, changes will be overriden\n"
-    shader_db += "\n"
-    shader_db += "#pragma once\n"
-    shader_db += "\n"
-    shader_db += "namespace v13 {\n"
-    shader_db += "\tnamespace shader_db {\n"
-
-    for file_name in os.listdir(SHADER_DIR):
-        # Optimize
-        file_path: str = os.path.join(SHADER_DIR, file_name)
-
-        file_content: str = ""
-        with open(file_path, "r") as f:
-            file_content = f.read()
-        
-        # Dump
-        lines: list[str] = file_content.split("\n")
-        
-        shader_db += f"\t\tconst char* {file_name.replace(".", "_").upper()} = \n"
-        for i, line in enumerate(lines):
-            shader_db += f"\t\t\t\"{line}{ "\\0" if i == len(lines)-1 else "\\n" }\"\n"
-        shader_db += "\t\t;\n\n"
-
-    shader_db += "\t} // namespace shader_db \n"
-    shader_db += "} // namespace v13\n"
-
-    with open("./src/shader_db.h", "w") as f:
-        f.write(shader_db)
-
+    for extention in loaded_extensions:
+        if "BEFORE_COMPILATION_OF_INTEMIDIATES" in extention.inject_stages:
+            extention.module.run(extension.config)
+    
     # Compile objects if needed
     for source_path, object_path in zip(source_files, object_files):
         pair_need_rebuild: bool = needs_rebuild(source_path, object_path)
@@ -125,7 +114,7 @@ def main() -> None:
         else:
             print(f"* {FG_WHITE_FAINT}{object_dir}/{RESET}{object_name} - {FG_GREEN}up to date{RESET}, skipping")
 
-    # Link EXECUTABLE_PATH if needed
+    # Link executable if needed
     EXECUTABLE_PATH_dir: str = os.path.dirname(EXECUTABLE_PATH)
     EXECUTABLE_PATH_name: str = os.path.splitext(os.path.basename(EXECUTABLE_PATH))[0]
     EXECUTABLE_PATH_extension: str = os.path.splitext(os.path.basename(EXECUTABLE_PATH))[1]
